@@ -7,9 +7,17 @@ module.exports = () => {
     const appdataPath = path.resolve(__dirname, './appdata');
     const trainedModelFilePath = path.resolve(appdataPath, 'faceRecognition2Model_150.json');
     const facesPath = path.resolve(path.resolve('./data'), 'faces')
-    const classNames = ['ignacio'];
+    const classNames = ['unknown'];
     const filter = new cv.CascadeClassifier(cv.HAAR_FRONTALFACE_DEFAULT);
     const recognizer = fr.FaceRecognizer();
+
+    if (!fs.existsSync(path.resolve('./data'))) {
+        fs.mkdirSync(path.resolve('./data'));
+    }
+
+    if (!fs.existsSync(facesPath)) {
+        fs.mkdirSync(facesPath);
+    }
 
     if (!fs.existsSync(appdataPath)) {
         fs.mkdirSync(appdataPath);

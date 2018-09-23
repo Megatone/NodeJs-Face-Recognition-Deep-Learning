@@ -9,10 +9,8 @@ runVideoFaceDetection();
 
 function runVideoFaceDetection() {
     const webcam = new cv.VideoCapture(puertoCam);
-    const win = new fr.ImageWindow();
-    fr.winKillProcessOnExit();
-    while (true) {
-        console.log(win);
+    const win = new fr.ImageWindow();   
+    while (true) {    
         let frame = webcam.read();
         if (frame.empty === false) {
             frame = frame.resizeToMax(800);
@@ -23,10 +21,11 @@ function runVideoFaceDetection() {
             win.clearOverlay();
             win.setImage(fr.CvImage(frame));
         } else {
+            process.exit();
             break;
         }
-
     }
+    process.exit();
 }
 
 
