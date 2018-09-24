@@ -1,16 +1,22 @@
-'use strict';
+var app = require('express')();
+var http = require('http').Server(app);
+var io = require('socket.io')(http);
 const recognitionModule = require('./recognitionModule')();
 const cv = recognitionModule.cv;
-const fr = recognitionModule.fr;
 const puertoCam = 0;
 
+app.get('/', function (req, res) {
+    res.sendFile(__dirname + '/index.html');
+});
 
-runVideoFaceDetection();
+http.listen(3000, function () {
+    console.log('listening on *:3000');
+    runVideoFaceDetection();
+});
 
 function runVideoFaceDetection() {
-    const webcam = new cv.VideoCapture(puertoCam);
-    const win = new fr.ImageWindow();   
-    while (true) {    
+    const webcam = new cv.VideoCapture(puertoCam);  
+    setInterval(() => {
         let frame = webcam.read();
         if (frame.empty === false) {
             frame = frame.resizeToMax(800);
@@ -18,18 +24,6 @@ function runVideoFaceDetection() {
             facesDetected.forEach((faceDetectedRect) => {
                 frame = recognitionModule.recognizeFace(frame, faceDetectedRect);
             });
-            win.clearOverlay();
-            win.setImage(fr.CvImage(frame));
-        } else {
-            process.exit();
-            break;
-        }
-    }
-    process.exit();
-}
-
-
-
-
-
-
+            io.emit('img', { base64: recognitionModule.matToBase64(frame) });        }
+    }, 16);
+} 

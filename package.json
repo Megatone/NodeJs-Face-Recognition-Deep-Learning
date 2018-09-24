@@ -9,8 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "express": "^4.15.2",
     "face-recognition": "^0.9.3",
     "js-alert": "^1.0.4",
-    "opencv4nodejs": "^4.8.0"
+    "opencv4nodejs": "^4.8.0",
+    "socket.io": "^2.1.1"
   }
 }

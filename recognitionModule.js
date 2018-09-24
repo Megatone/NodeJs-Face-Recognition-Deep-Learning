@@ -7,7 +7,7 @@ module.exports = () => {
     const appdataPath = path.resolve(__dirname, './appdata');
     const trainedModelFilePath = path.resolve(appdataPath, 'faceRecognition2Model_150.json');
     const facesPath = path.resolve(path.resolve('./data'), 'faces')
-    const classNames = ['unknown'];
+    let classNames = [];
     const filter = new cv.CascadeClassifier(cv.HAAR_FRONTALFACE_DEFAULT);
     const recognizer = fr.FaceRecognizer();
 
@@ -25,6 +25,12 @@ module.exports = () => {
 
     if (!fs.existsSync(trainedModelFilePath)) {
         const allFiles = fs.readdirSync(facesPath)
+        classNames = allFiles.map(f => {
+            return f.replace(/[0-9]/g, '').trim().replace('.jpg', '').replace('.png', '').replace('_', '').replace('-', '').replace('(', '').replace(')', '');
+        }).filter((value, index, self) => {
+            return self.indexOf(value) === index;
+        });
+
         const imagesByClass = classNames.map(c =>
             allFiles
                 .filter(f => f.includes(c))
@@ -46,7 +52,7 @@ module.exports = () => {
 
     return {
         cv: cv,
-        fr: fr,  
+        fr: fr,
         detectFaces: (imagen) => {
             const facesDetected = filter.detectMultiScaleGpu(imagen.bgrToGray(), {
                 minSize: new cv.Size(100, 100),
@@ -58,18 +64,24 @@ module.exports = () => {
         recognizeFace: (frame, faceDetectedRect, feedDeepLearningFaceRecognition = 0.1) => {
             let frameDetected = frame.getRegion(faceDetectedRect).resize(150, 150);
             let faceDetected = fr.CvImage(frameDetected);
-            const prediction = recognizer.predictBest(faceDetected, 0.5);
+            const prediction = recognizer.predictBest(faceDetected, 0.6);
             if (prediction.distance < feedDeepLearningFaceRecognition) {
                 cv.imwrite(facesPath + '/' + prediction.className + Math.floor(Date.now() / 1000) + '.jpg', frameDetected);
             }
 
             frame.drawRectangle(faceDetectedRect, cv.Vec(255, 0, 0), 2, cv.LINE_AA);
             let percent = parseInt((100 - (prediction.distance * 100)));
-            let label = (prediction.className + ' - ' + percent+ '%').toUpperCase();
+            let label = (prediction.className + ' - ' + percent + '%').toUpperCase();
             let positionLabel = new cv.Point(faceDetectedRect.x, faceDetectedRect.y - 10);
             let color = cv.Vec(0, 255, 0);
-            frame.putText(label, positionLabel, cv.FONT_HERSHEY_PLAIN, 1.3, color , 1);
+            frame.putText(label, positionLabel, cv.FONT_HERSHEY_PLAIN, 1.3, color, 1);
             return frame;
+        },
+        saveFace: (name , face)=>{
+            cv.imwrite(facesPath + '/' + name + Math.floor(Date.now() / 1000) + '.jpg', face);
+        },
+        matToBase64: function (mat) {
+            return 'data:image/jpeg;base64,' + cv.imencode('.jpg', mat).toString('base64');
         }
     };
 };
