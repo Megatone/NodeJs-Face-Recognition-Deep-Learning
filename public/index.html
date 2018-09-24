@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>CAM Recognition</title>    
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    <script>
+        var socket = io();
+        socket.on('img', function (msg) {
+            $("#imgbase64")[0].src = msg.base64;
+        });
+    </script>
+</head>
+<body>
+    <img src="" id="imgbase64">
+</body>
+
+</html>

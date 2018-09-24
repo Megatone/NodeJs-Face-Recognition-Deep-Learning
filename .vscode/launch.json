@@ -8,7 +8,7 @@
             "type": "node",
             "request": "launch",
             "name": "Iniciar programa",
-            "program": "${workspaceFolder}\\main.js"
+            "program": "${workspaceFolder}\\train.js"
         }
     ]
 }

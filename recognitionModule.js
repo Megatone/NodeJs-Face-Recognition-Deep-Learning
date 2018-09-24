@@ -1,58 +1,29 @@
 'use strict';
 module.exports = () => {
-    const path = require('path');
-    const fs = require('fs')
+    const db = require('./db/db');
     const cv = require('opencv4nodejs');
     const fr = require('face-recognition').withCv(cv);
-    const appdataPath = path.resolve(__dirname, './appdata');
-    const trainedModelFilePath = path.resolve(appdataPath, 'faceRecognition2Model_150.json');
-    const facesPath = path.resolve(path.resolve('./data'), 'faces')
-    let classNames = [];
     const filter = new cv.CascadeClassifier(cv.HAAR_FRONTALFACE_DEFAULT);
     const recognizer = fr.FaceRecognizer();
 
-    if (!fs.existsSync(path.resolve('./data'))) {
-        fs.mkdirSync(path.resolve('./data'));
+    function saveFaceDescriptor(name, face, callback) {
+        let _face = fr.cvImageToImageRGB(fr.CvImage(face));
+        const recognizer2 = new fr.FaceRecognizer();
+        recognizer2.addFaces([_face], name);
+        db.controller.upsertFaceDescriptor(recognizer2.serialize()[0], callback);
     }
-
-    if (!fs.existsSync(facesPath)) {
-        fs.mkdirSync(facesPath);
-    }
-
-    if (!fs.existsSync(appdataPath)) {
-        fs.mkdirSync(appdataPath);
-    }
-
-    if (!fs.existsSync(trainedModelFilePath)) {
-        const allFiles = fs.readdirSync(facesPath)
-        classNames = allFiles.map(f => {
-            return f.replace(/[0-9]/g, '').trim().replace('.jpg', '').replace('.png', '').replace('_', '').replace('-', '').replace('(', '').replace(')', '');
-        }).filter((value, index, self) => {
-            return self.indexOf(value) === index;
-        });
-
-        const imagesByClass = classNames.map(c =>
-            allFiles
-                .filter(f => f.includes(c))
-                .map(f => path.join(facesPath, f))
-                .map(fp => {
-                    return fr.cvImageToImageRGB(fr.CvImage(cv.imread(fp)));
-                })
-        )
-
-        imagesByClass.forEach((faces, label) => {
-            recognizer.addFaces(faces, classNames[label]);
-        });
-
-        fs.writeFileSync(trainedModelFilePath, JSON.stringify(recognizer.serialize()));
-    } else {
-        recognizer.load(require(trainedModelFilePath));
-    }
-
 
     return {
         cv: cv,
         fr: fr,
+        initialize: (callback) => {
+            db.connect(() => {
+                db.controller.getFaceDescriptors(function (faceDescriptors) {
+                    recognizer.load(faceDescriptors);
+                    callback();
+                });
+            });
+        },
         detectFaces: (imagen) => {
             const facesDetected = filter.detectMultiScaleGpu(imagen.bgrToGray(), {
                 minSize: new cv.Size(100, 100),
@@ -61,14 +32,17 @@ module.exports = () => {
             }).objects;
             return facesDetected;
         },
+        matToBase64: function (mat) {
+            return 'data:image/jpeg;base64,' + cv.imencode('.jpg', mat).toString('base64');
+        },
+        saveFaceDescriptor: saveFaceDescriptor,
         recognizeFace: (frame, faceDetectedRect, feedDeepLearningFaceRecognition = 0.1) => {
             let frameDetected = frame.getRegion(faceDetectedRect).resize(150, 150);
             let faceDetected = fr.CvImage(frameDetected);
-            const prediction = recognizer.predictBest(faceDetected, 0.6);
+            const prediction = recognizer.predictBest(faceDetected, 0.5);
             if (prediction.distance < feedDeepLearningFaceRecognition) {
-                cv.imwrite(facesPath + '/' + prediction.className + Math.floor(Date.now() / 1000) + '.jpg', frameDetected);
+                saveFaceDescriptor(prediction.className, frameDetected, () => { });
             }
-
             frame.drawRectangle(faceDetectedRect, cv.Vec(255, 0, 0), 2, cv.LINE_AA);
             let percent = parseInt((100 - (prediction.distance * 100)));
             let label = (prediction.className + ' - ' + percent + '%').toUpperCase();
@@ -77,11 +51,5 @@ module.exports = () => {
             frame.putText(label, positionLabel, cv.FONT_HERSHEY_PLAIN, 1.3, color, 1);
             return frame;
         },
-        saveFace: (name , face)=>{
-            cv.imwrite(facesPath + '/' + name + Math.floor(Date.now() / 1000) + '.jpg', face);
-        },
-        matToBase64: function (mat) {
-            return 'data:image/jpeg;base64,' + cv.imencode('.jpg', mat).toString('base64');
-        }
     };
 };
